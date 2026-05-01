@@ -1,6 +1,9 @@
-export OMZ=$(cd $(dirname $0);pwd)
+if [ -z "${OMZ:-}" ]; then
+	export OMZ="${${(%):-%N}:A:h}"
+fi
 export UEBERZUGPP_PID_FILE=$OMZ/cache/ubpidfile
 source $OMZ/config/omz.zsh
+source $OMZ/config/init.zsh
 source $OMZ/config/git.zsh
 source $OMZ/config/fzf.zsh
 source $OMZ/config/hook.zsh

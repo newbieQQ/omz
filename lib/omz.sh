@@ -5,6 +5,269 @@ SHORT_HOST=${HOST/.*/}
 autoload -Uz add-zsh-hook
 zmodload -i zsh/complist
 unsetopt correct
+
+_omz_auto_install_enabled() {
+  [[ "${_OMZ_AUTO_INSTALL:-true}" == "true" ]] && [[ -o interactive ]]
+}
+
+_omz_can_retry_install() {
+  local key="$1"
+  local cooldown_seconds now ts_file ts
+
+  cooldown_seconds=${_OMZ_AUTO_INSTALL_RETRY_SECONDS:-86400}
+  ts_file="$OMZ/cache/.auto_install_${key}.ts"
+  now=$(date +%s)
+
+  [[ ! -f "$ts_file" ]] && return 0
+
+  ts=$(cat "$ts_file" 2>/dev/null || true)
+  [[ -z "$ts" ]] && return 0
+
+  (( now - ts >= cooldown_seconds ))
+}
+
+_omz_mark_install_attempt() {
+  local key="$1"
+  mkdir -p "$OMZ/cache"
+  date +%s > "$OMZ/cache/.auto_install_${key}.ts"
+}
+
+_omz_has_cmd() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+_omz_should_prefer_flatpak() {
+  [[ "${_OMZ_PREFER_FLATPAK:-true}" == "true" ]]
+}
+
+_omz_detect_pkg_manager() {
+  if _omz_should_prefer_flatpak && _omz_has_cmd flatpak; then
+    echo "flatpak"
+  elif _omz_has_cmd apt-get; then
+    echo "apt"
+  elif _omz_has_cmd dnf; then
+    echo "dnf"
+  elif _omz_has_cmd yum; then
+    echo "yum"
+  elif _omz_has_cmd pacman; then
+    echo "pacman"
+  elif _omz_has_cmd zypper; then
+    echo "zypper"
+  elif _omz_has_cmd apk; then
+    echo "apk"
+  elif _omz_has_cmd brew; then
+    echo "brew"
+  else
+    echo ""
+  fi
+}
+
+_omz_get_flatpak_app_id() {
+  local pkg="$1"
+  case "$pkg" in
+    fzf)
+      echo "${_OMZ_FLATPAK_APP_FZF:-io.github.junegunn.fzf}"
+      ;;
+    fd|fd-find)
+      echo "${_OMZ_FLATPAK_APP_FD:-io.github.sharkdp.fd}"
+      ;;
+    lua|lua5.4)
+      echo "${_OMZ_FLATPAK_APP_LUA:-org.lua.Lua}"
+      ;;
+    *)
+      echo ""
+      ;;
+  esac
+}
+
+_omz_install_with_flatpak() {
+  local pkg="$1"
+  local app_id
+
+  _omz_has_cmd flatpak || return 1
+  app_id="$(_omz_get_flatpak_app_id "$pkg")"
+  [[ -n "$app_id" ]] || return 1
+
+  flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo >/dev/null 2>&1 || return 1
+  flatpak install -y --noninteractive flathub "$app_id" || return 1
+
+  return 0
+}
+
+_omz_run_install_cmd() {
+  if (( EUID == 0 )); then
+    "$@"
+    return $?
+  fi
+
+  if _omz_has_cmd sudo; then
+    sudo "$@"
+    return $?
+  fi
+
+  return 1
+}
+
+_omz_install_with_pkg_manager() {
+  local pkg="$1"
+  local manager
+  manager=$(_omz_detect_pkg_manager)
+
+  case "$manager" in
+    flatpak)
+      _omz_install_with_flatpak "$pkg" || {
+        if _omz_has_cmd apt-get; then
+          _omz_run_install_cmd apt-get update && _omz_run_install_cmd apt-get install -y "$pkg"
+        elif _omz_has_cmd dnf; then
+          _omz_run_install_cmd dnf install -y "$pkg"
+        elif _omz_has_cmd yum; then
+          _omz_run_install_cmd yum install -y "$pkg"
+        elif _omz_has_cmd pacman; then
+          _omz_run_install_cmd pacman -Sy --noconfirm "$pkg"
+        elif _omz_has_cmd zypper; then
+          _omz_run_install_cmd zypper --non-interactive install "$pkg"
+        elif _omz_has_cmd apk; then
+          _omz_run_install_cmd apk add "$pkg"
+        elif _omz_has_cmd brew; then
+          brew install "$pkg"
+        else
+          return 1
+        fi
+      }
+      ;;
+    apt)
+      _omz_run_install_cmd apt-get update && _omz_run_install_cmd apt-get install -y "$pkg"
+      ;;
+    dnf)
+      _omz_run_install_cmd dnf install -y "$pkg"
+      ;;
+    yum)
+      _omz_run_install_cmd yum install -y "$pkg"
+      ;;
+    pacman)
+      _omz_run_install_cmd pacman -Sy --noconfirm "$pkg"
+      ;;
+    zypper)
+      _omz_run_install_cmd zypper --non-interactive install "$pkg"
+      ;;
+    apk)
+      _omz_run_install_cmd apk add "$pkg"
+      ;;
+    brew)
+      brew install "$pkg"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+_omz_install_fd() {
+  _omz_has_cmd fd && return 0
+  _omz_auto_install_enabled || return 1
+  _omz_can_retry_install "fd" || return 1
+  _omz_mark_install_attempt "fd"
+
+  local manager pkg
+  manager=$(_omz_detect_pkg_manager)
+  pkg="fd"
+  [[ "$manager" == "apt" ]] && pkg="fd-find"
+
+  echo "[omz] fd not found, installing ${pkg}..."
+  _omz_install_with_pkg_manager "$pkg" || return 1
+
+  if _omz_has_cmd fd; then
+    return 0
+  fi
+
+  if _omz_has_cmd fdfind; then
+    mkdir -p "$HOME/.local/bin"
+    ln -sf "$(command -v fdfind)" "$HOME/.local/bin/fd"
+    export PATH="$HOME/.local/bin:$PATH"
+  fi
+
+  _omz_has_cmd fd
+}
+
+_omz_install_fzf() {
+  _omz_has_cmd fzf && return 0
+  _omz_auto_install_enabled || return 1
+  _omz_can_retry_install "fzf" || return 1
+  _omz_mark_install_attempt "fzf"
+
+  echo "[omz] fzf not found, trying package manager install..."
+  _omz_install_with_pkg_manager "fzf" || true
+  _omz_has_cmd fzf && return 0
+
+  if [[ ! -d "$HOME/.fzf" ]] && _omz_has_cmd git; then
+    echo "[omz] fallback: install fzf from github to ~/.fzf"
+    git clone --depth 1 https://github.com/junegunn/fzf.git "$HOME/.fzf" || return 1
+    "$HOME/.fzf/install" --key-bindings --completion --no-bash --no-fish --no-update-rc || return 1
+  fi
+
+  _omz_has_cmd fzf
+}
+
+_omz_install_lua() {
+  _omz_has_cmd lua && return 0
+  _omz_auto_install_enabled || return 1
+  _omz_can_retry_install "lua" || return 1
+  _omz_mark_install_attempt "lua"
+
+  echo "[omz] lua not found, installing..."
+  _omz_install_with_pkg_manager "lua" || _omz_install_with_pkg_manager "lua5.4"
+  _omz_has_cmd lua
+}
+
+_omz_install_conda() {
+  _omz_has_cmd conda && return 0
+  _omz_auto_install_enabled || return 1
+  _omz_can_retry_install "conda" || return 1
+  _omz_mark_install_attempt "conda"
+
+  local installer target_dir tmp_file arch os_name
+  target_dir="$HOME/.local/share/miniconda3"
+  os_name="$(uname -s)"
+  arch="$(uname -m)"
+
+  case "$os_name" in
+    Linux) os_name="Linux" ;;
+    Darwin) os_name="MacOSX" ;;
+    *)
+      echo "[omz] unsupported OS for auto conda install: $os_name"
+      return 1
+      ;;
+  esac
+
+  case "$arch" in
+    x86_64|amd64) arch="x86_64" ;;
+    aarch64|arm64) arch="aarch64" ;;
+    *)
+      echo "[omz] unsupported CPU for auto conda install: $arch"
+      return 1
+      ;;
+  esac
+
+  installer="Miniconda3-latest-${os_name}-${arch}.sh"
+  tmp_file="/tmp/${installer}"
+
+  echo "[omz] conda not found, installing miniconda..."
+  if _omz_has_cmd curl; then
+    curl -fsSL "https://repo.anaconda.com/miniconda/${installer}" -o "$tmp_file" || return 1
+  elif _omz_has_cmd wget; then
+    wget -q "https://repo.anaconda.com/miniconda/${installer}" -O "$tmp_file" || return 1
+  else
+    echo "[omz] curl or wget is required to install conda"
+    return 1
+  fi
+
+  bash "$tmp_file" -b -p "$target_dir" || return 1
+  rm -f "$tmp_file"
+
+  export PATH="$target_dir/bin:$PATH"
+  _omz_has_cmd conda
+}
+
 autoload -U compaudit compinit
 autoload -U compinit && compinit
 setopt auto_pushd

@@ -38,8 +38,33 @@ fork自 oh my zsh，更纯净 更快速
   # 在你的zsh配置里 source ~/.config/omz/omz.zsh (举例)
   echo "source ~/.config/omz/omz.zsh" >> ~/.zshrc
 
-  # 请务必安装fzf和lua 依赖
+  # 重新加载zsh配置
+  source ~/.zshrc
+
+  # 首次加载会询问是否安装依赖（conda / fzf / fd / lua）
+  # 如果选择 N，会写入 defer 标记，不再自动安装
+  # 后续可手动执行 inttall 触发首次安装
+
+  # 首次安装完成后会写入 managed 标记
+  # 后续执行 install（不带参数）会走更新流程
+
+  # 若你需要系统原生 install 命令，正常带参数即可
+  # 例如 install -m 644 ./a ./b
 ```
+
+依赖安装状态文件在 `cache/install.state`：
+
+- `deferred`: 已拒绝自动安装，等待手动 `inttall`
+- `managed`: 已接管依赖管理，后续 `install` 为更新
+
+可选环境变量：
+
+- `_OMZ_INSTALL_PROMPT=false` 关闭首次询问
+- `_OMZ_ENABLE_INSTALL_COMMAND=false` 不接管 `install` 空命令
+- `_OMZ_PREFER_FLATPAK=true` 依赖安装优先尝试 flatpak（默认 true）
+- `_OMZ_FLATPAK_APP_FZF=...` 自定义 fzf 的 flatpak app id
+- `_OMZ_FLATPAK_APP_FD=...` 自定义 fd 的 flatpak app id
+- `_OMZ_FLATPAK_APP_LUA=...` 自定义 lua 的 flatpak app id
 
 ## UPDATE
 
@@ -60,6 +85,7 @@ omz
   │   ├── fzf.zsh         -- fzf 及 fzf-tab配置
   │   ├── git.zsh         -- git相关配置
   │   ├── hook.zsh        -- 命令或启动钩子配置
+  │   ├── init.zsh        -- 依赖安装初始化及状态管理
   │   └── omz.zsh         -- omz基础配置
   ├── plugins/            -- 插件
   ├── themes/             -- 主题
