@@ -22,6 +22,15 @@ _omz_run_install_steps() {
 
     _omz_install_fd || failed=1
     _omz_install_fzf || failed=1
+    # fastfetch is a useful dependency (preview/status); try to install
+    if _omz_has_cmd fastfetch; then :; else
+        # prefer flatpak when available
+        if _omz_should_prefer_flatpak && _omz_has_cmd flatpak; then
+            _omz_install_with_flatpak fastfetch || _omz_install_with_pkg_manager fastfetch || true
+        else
+            _omz_install_with_pkg_manager fastfetch || true
+        fi
+    fi
     _omz_install_lua || failed=1
     _omz_install_conda || failed=1
 

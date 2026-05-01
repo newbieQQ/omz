@@ -74,6 +74,9 @@ _omz_get_flatpak_app_id() {
     lua|lua5.4)
       echo "${_OMZ_FLATPAK_APP_LUA:-org.lua.Lua}"
       ;;
+    fastfetch)
+      echo "${_OMZ_FLATPAK_APP_FASTFETCH:-com.github.dylanaraps.fastfetch}"
+      ;;
     *)
       echo ""
       ;;
@@ -84,6 +87,10 @@ _omz_install_with_flatpak() {
   local pkg="$1"
   local app_id
 
+  if ! _omz_has_cmd flatpak; then
+    # try to install flatpak runtime via package manager
+    _omz_install_with_pkg_manager "flatpak" || return 1
+  fi
   _omz_has_cmd flatpak || return 1
   app_id="$(_omz_get_flatpak_app_id "$pkg")"
   [[ -n "$app_id" ]] || return 1
