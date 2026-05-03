@@ -4,5 +4,6 @@ source $OMZ/plugins/extract/extract.plugin.zsh
 source $OMZ/plugins/fzf-tab/fzf-tab.zsh
 source $OMZ/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
 source $OMZ/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+source $OMZ/plugins/conda-env/conda-env.plugin.zsh
 
 

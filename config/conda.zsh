@@ -38,3 +38,4 @@ fi
 alias ca="conda activate"
 compdef ca=conda 2>/dev/null || true
 
+
