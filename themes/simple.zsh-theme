@@ -9,3 +9,7 @@ PROMPT="%{$fg[blue]%}$PCNAME%(!.%{$fg[green]%}.%{$fg[green]%})%~%{$fg_bold[yello
 ZSH_THEME_GIT_PROMPT_PREFIX="["
 ZSH_THEME_GIT_PROMPT_SUFFIX="]"
 ZSH_THEME_GIT_PROMPT_DIRTY="~"
+
+ZSH_THEME_CONDA_PREFIX='[conda:%F{green}'
+ZSH_THEME_CONDA_SUFFIX='%f]'
+RPROMPT='$(conda_prompt_info)'
