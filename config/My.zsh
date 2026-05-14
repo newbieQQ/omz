@@ -9,7 +9,9 @@ if [[ "$TERM" == "xterm-kitty" ]]; then
     alias ssh="kitten ssh"
 fi 
 
-fastfetch
+if [[ $- == *i* && "$TERM_PROGRAM" != "vscode" ]]; then
+    fastfetch
+fi
 
 
 
