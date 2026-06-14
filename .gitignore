@@ -9,3 +9,4 @@ logs/
 **/dump.rdb
 **/.DS_Store
 cache/
+config/local.zsh

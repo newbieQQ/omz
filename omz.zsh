@@ -7,6 +7,7 @@ source $OMZ/config/init.zsh
 source $OMZ/config/git.zsh
 source $OMZ/config/fzf.zsh
 source $OMZ/config/hook.zsh
+[ -f $OMZ/config/local.zsh ] && source $OMZ/config/local.zsh
 source $OMZ/config/My.zsh
 source $OMZ/config/conda.zsh
 source $OMZ/themes/simple.zsh-theme

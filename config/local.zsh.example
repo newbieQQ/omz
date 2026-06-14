@@ -1,0 +1,26 @@
+# ============================================================
+# local.zsh — 本地私有配置（不可提交到 git）
+# ============================================================
+# 使用方式:
+#   cp config/local.zsh.example config/local.zsh
+#   然后编辑 config/local.zsh 填入你自己的私密配置
+#
+# config/local.zsh 已在 .gitignore 中，不会被 git 追踪
+#
+# 加载顺序: local.zsh → My.zsh，因此 My.zsh 可以直接引用此处定义的变量
+# ============================================================
+
+# --- 环境变量 / API Key 示例 ---
+# export OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+# export GITHUB_TOKEN="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+# export DOCKER_HOST="tcp://192.168.1.100:2375"
+
+# --- 私有 PATH 扩展 ---
+# export PATH="$HOME/.local/bin:$HOME/scripts:$PATH"
+
+# --- 私有 alias ---
+# alias work="cd ~/projects/work"
+# alias myip="curl -s ifconfig.me"
+
+# --- 其他敏感或不便于共享的配置 ---
+# export SOME_PRIVATE_VAR="only-on-this-machine"
